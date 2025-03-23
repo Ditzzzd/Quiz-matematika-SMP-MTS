@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiz SMP - MTS DI</title>
+  <!-- Menggunakan Google Fonts untuk tampilan modern -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #000000, #0d1b2a);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 90%;
+      max-width: 600px;
+      text-align: center;
+    }
+    header {
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+    .quiz-box {
+      background: linear-gradient(135deg, #0d1b2a, #000000);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    .question {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+    .answers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    .answer-btn {
+      flex: 1 1 calc(50% - 10px);
+      padding: 15px;
+      background: #1b263b;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-bottom: 10px;
+    }
+    .answer-btn:hover {
+      background: #415a77;
+    }
+    .answer-btn.correct {
+      background: #2ecc71 !important;
+    }
+    .answer-btn.incorrect {
+      background: #e74c3c !important;
+    }
+    footer {
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+    @media (max-width: 480px) {
+      .question {
+        font-size: 1.3rem;
+      }
+      .answer-btn {
+        font-size: 0.9rem;
+        padding: 12px;
+      }
+    }
+    /* Animasi api */
+    .fire {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle, #ff9900, #ff3300);
+      border-radius: 50%;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .fire.active {
+      animation: fireAnim 0.8s linear;
+    }
+    @keyframes fireAnim {
+      0% { opacity: 0; transform: translateX(-50%) translateY(0) scale(0.5); }
+      50% { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(1.2); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>Quiz SMP - MTS DI</header>
+    <div class="quiz-box">
+      <div id="question" class="question">Loading question...</div>
+      <div id="answers" class="answers"></div>
+      <!-- Elemen untuk animasi api -->
+      <div id="fire" class="fire"></div>
+    </div>
+    <footer>created by Ditzzz ganteng</footer>
+  </div>
+
+  <!-- Audio untuk sound effect -->
+  <audio id="correct-sound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="incorrect-sound" src="https://actions.google.com/sounds/v1/cartoon/boing.ogg"></audio>
+  <!-- Sound effect tambahan bila jawab salah -->
+  <audio id="wrong-sound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+
+  <script>
+    // List soal quiz akan dibuat secara acak sebanyak 20 soal
+    const totalQuestions = 20;
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let questions = [];
+
+    // Fungsi pembantu untuk menghasilkan bilangan acak
+    function rand(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Fungsi untuk membuat soal penjumlahan
+    function generateAddition() {
+      const a = rand(1, 100);
+      const b = rand(1, 100);
+      return {
+        question: `${a} + ${b} = ?`,
+        answer: a + b
+      };
+    }
+
+    // Fungsi untuk membuat soal pengurangan (hasil tidak negatif)
+    function generateSubtraction() {
+      let a = rand(1, 100);
+      let b = rand(1, a);
+      return {
+        question: `${a} - ${b} = ?`,
+        answer: a - b
+      };
+    }
+
+    // Fungsi untuk membuat soal perkalian (hasil <= 200) menggunakan simbol "x"
+    function generateMultiplication() {
+      let a, b;
+      do {
+        a = rand(1, 20);
+        b = rand(1, 20);
+      } while(a * b > 200);
+      return {
+        question: `${a} x ${b} = ?`,
+        answer: a * b
+      };
+    }
+
+    // Fungsi untuk membuat soal pembagian (hasil <= 200, hasil bilangan bulat)
+    function generateDivision() {
+      let divisor = rand(1, 20);
+      let quotient = rand(1, Math.floor(200/divisor));
+      let dividend = divisor * quotient;
+      return {
+        question: `${dividend} ÷ ${divisor} = ?`,
+        answer: quotient
+      };
+    }
+
+    // Fungsi untuk membuat soal perpangkatan dengan tampilan superscript
+    function generateExponentiation() {
+      let base = rand(2, 10);
+      let exp = rand(2, 3);
+      // Pastikan hasil tidak lebih dari 200
+      while (Math.pow(base, exp) > 200) {
+        base = rand(2, 10);
+      }
+      // Ubah angka pangkat menjadi superscript (hanya untuk 2 dan 3)
+      let expSup = exp === 2 ? '²' : '³';
+      return {
+        question: `${base}${expSup} = ?`,
+        answer: Math.pow(base, exp)
+      };
+    }
+
+    // Pilih secara acak jenis soal
+    function generateRandomQuestion() {
+      const types = [generateAddition, generateSubtraction, generateMultiplication, generateDivision, generateExponentiation];
+      const randomFunc = types[rand(0, types.length - 1)];
+      return randomFunc();
+    }
+
+    // Buat array soal sebanyak totalQuestions
+    for (let i = 0; i < totalQuestions; i++) {
+      questions.push(generateRandomQuestion());
+    }
+
+    // Fungsi untuk mengacak jawaban (fungsi Fisher-Yates)
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // Fungsi untuk menampilkan soal berikutnya
+    function showQuestion() {
+      if (currentQuestionIndex >= totalQuestions) {
+        // Tampilkan skor akhir
+        document.getElementById("question").innerText = `Skor kamu: ${score} / ${totalQuestions}`;
+        document.getElementById("answers").innerHTML = `<button class="answer-btn" onclick="location.reload()">Coba Lagi</button>`;
+        return;
+      }
+      const current = questions[currentQuestionIndex];
+      document.getElementById("question").innerText = current.question;
+      
+      // Buat array jawaban: satu jawaban benar dan 3 jawaban salah
+      let answers = [current.answer];
+      while (answers.length < 4) {
+        // Hasil salah acak di sekitar jawaban yang benar
+        let wrong = current.answer + rand(-10, 10);
+        // Pastikan salah tidak sama dengan jawaban benar dan belum ada di list
+        if (wrong !== current.answer && !answers.includes(wrong) && wrong >= 0) {
+          answers.push(wrong);
+        }
+      }
+      answers = shuffleArray(answers);
+      
+      // Tampilkan jawaban
+      const answersDiv = document.getElementById("answers");
+      answersDiv.innerHTML = "";
+      answers.forEach(ans => {
+        const btn = document.createElement("button");
+        btn.className = "answer-btn";
+        btn.innerText = ans;
+        btn.onclick = () => selectAnswer(btn, ans);
+        answersDiv.appendChild(btn);
+      });
+    }
+
+    // Fungsi untuk memilih jawaban
+    function selectAnswer(button, selected) {
+      const current = questions[currentQuestionIndex];
+      const correctSound = document.getElementById("correct-sound");
+      const incorrectSound = document.getElementById("incorrect-sound");
+      const wrongSound = document.getElementById("wrong-sound");
+      const fire = document.getElementById("fire");
+
+      // Matikan klik tambahan dengan menonaktifkan semua tombol
+      const buttons = document.querySelectorAll(".answer-btn");
+      buttons.forEach(btn => btn.disabled = true);
+
+      if (selected === current.answer) {
+        button.classList.add("correct");
+        score++;
+        correctSound.currentTime = 0;
+        correctSound.play();
+        // Tambahkan animasi api menyala bila benar
+        fire.classList.add("active");
+        setTimeout(() => { fire.classList.remove("active"); }, 800);
+      } else {
+        button.classList.add("incorrect");
+        incorrectSound.currentTime = 0;
+        incorrectSound.play();
+        wrongSound.currentTime = 0;
+        wrongSound.play();
+      }
+
+      // Transisi ke soal berikutnya setelah 1 detik
+      setTimeout(() => {
+        currentQuestionIndex++;
+        showQuestion();
+      }, 1000);
+    }
+
+    // Mulai quiz
+    showQuestion();
+  </script>
+</body>
+  </html
